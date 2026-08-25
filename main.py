@@ -22,10 +22,12 @@ from utils import collate_fn
 parser = argparse.ArgumentParser()
 parser.add_argument("--modality", default="video")
 parser.add_argument("--batch_size", default=16)
+parser.add_argument("--epochs", default=30)
 args = parser.parse_args()
 
 batch_size = args.batch_size
 modality = args.modality
+epochs = args.epochs
 
 print("Loading dataset... Please be patient!")
 audios = []
@@ -33,7 +35,7 @@ videos = []
 labels = []
 
 root = '/data1/span_data/stuttering/'
-subjects = ["PWS3", "PWS4", "PWS5", "PWS6", "PWS7", "PWS8", "PWS10"]
+subjects = ["PWS3", "PWS4", "PWS6", "PWS8"]
 
 for subject in subjects:
     textgrids = sorted(glob.glob(os.path.join(root, subject, "textgrid", "*.TextGrid")))
@@ -55,36 +57,38 @@ for subject in subjects:
             video = torch.tensor(np.array(frames), dtype=torch.float32)
             video = rearrange(video, 't h w c -> t c h w')  # Rearrange to (T, C, H, W)
             cap.release()
-            videos.append(video)
-            audios.append(wav)
+            for tier in tg:
+                if tier.name == "words":
+                    timelabels = []
+                    timestep = 0
+                    while timestep <= tier.maxTime:
+                        for palabra in tier:
+                            if timestep >= palabra.minTime and timestep <= palabra.maxTime:
+                                if "flue" in palabra.mark:
+                                    timelabels.append(1)
+                                elif "disf" in palabra.mark:
+                                    timelabels.append(2)
+                                else:
+                                    timelabels.append(0)
+                        timestep += 0.02
+                    if 1 in timelabels or 2 in timelabels:
+                        labels.append(timelabels)
+                        videos.append(video)
+                        audios.append(wav)
         except:
             continue
-        for tier in tg:
-            if tier.name == "words":
-                timelabels = []
-                timestep = 0
-                while timestep <= tier.maxTime:
-                    for palabra in tier:
-                        if timestep >= palabra.minTime and timestep <= palabra.maxTime:
-                            if "flue" in palabra.mark:
-                                timelabels.append(1)
-                            elif "disf" in palabra.mark:
-                                timelabels.append(2)
-                            else:
-                                timelabels.append(0)
-                    timestep += 0.02
-                labels.append(timelabels)
+        
 
 combinadas = list(zip(audios, videos, labels))
 random.shuffle(combinadas)
 audios, videos, labels = map(list, zip(*combinadas))
 
-training_audios = audios[:360]
-training_videos = videos[:360]
-training_labels = labels[:360]
-testing_audios = audios[360:]
-testing_videos = videos[360:]
-testing_labels = labels[360:]
+training_audios = audios[:85]
+training_videos = videos[:85]
+training_labels = labels[:85]
+testing_audios = audios[85:]
+testing_videos = videos[85:]
+testing_labels = labels[85:]
 
 device = torch.device(
     "cuda" if torch.cuda.is_available() else "cpu"
@@ -154,7 +158,7 @@ testloader = DataLoader(
     collate_fn=collate_fn,
 )
 
-for epoch in range(20):
+for epoch in range(epochs):
     print("Epoch", epoch)
     model.train()
     running_loss = 0.0
@@ -199,7 +203,7 @@ for epoch in range(20):
         optimizer.step()
         running_loss += loss.item()
 
-        if index % 25 == 0:
+        if index % 5 == 0:
             loss, current, size = loss.item(), index * batch_size + len(audio), len(trainloader.dataset)
             print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
     print(
