@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader, random_split
 import numpy as np
 
-class MultimodalStutteringDataset(Dataset):
+class MulticlassMultimodalStutteringDataset(Dataset):
     def __init__(
         self,
         audios,
