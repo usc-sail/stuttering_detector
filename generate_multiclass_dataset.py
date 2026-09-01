@@ -87,9 +87,6 @@ counts = Counter()
 for label_seq in training_labels:
     counts.update(label_seq)
 
-for i in range(4):
-    print(counts[i])
-
 #Load training and testing datasets
 train_set = MulticlassMultimodalStutteringDataset(
     training_audios,
