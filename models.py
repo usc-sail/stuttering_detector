@@ -9,7 +9,7 @@ class StutteringDetector(nn.Module):
         wavlm,
         modality,
         hidden_size=128,
-        num_classes=3,
+        num_classes=4,
         freeze_wavlm=True,
     ):
         super().__init__()
@@ -80,9 +80,10 @@ class StutteringDetector(nn.Module):
     
             x = self.dropout(x)
     
-            logits = self.classifier(x) #[B, T, 3]
+            logits = self.classifier(x) #[B, T, 4]
     
             return logits
+
         if self.modality == "video":
             b = video.shape[0]
             t = video.shape[1]
@@ -91,7 +92,7 @@ class StutteringDetector(nn.Module):
             x = self.batchnorm1(x) 
             x = torch.flatten(x, start_dim=1)
             x = F.relu(self.fc1(x))
-
+            
             x = rearrange(x, '(b t) e -> b t e', b=b, t=t) 
             x = rearrange(x, 'b t e -> b e t')
             x = F.relu(self.conv2(x))
@@ -102,9 +103,10 @@ class StutteringDetector(nn.Module):
     
             x = self.dropout(x)
     
-            logits = self.classifier(x) #[B, T, 3]
+            logits = self.classifier(x) #[B, T, 4]
     
             return logits
+
         if self.modality == "both":
             with torch.no_grad() if not self.training else torch.enable_grad():
                 outputs = self.wavlm(
@@ -142,5 +144,5 @@ class StutteringDetector(nn.Module):
     
             x = self.dropout(x)
     
-            logits = self.classifier(x) #[B, T, 3]
+            logits = self.classifier(x) #[B, T, 4]
             return logits
